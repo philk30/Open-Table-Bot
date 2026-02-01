@@ -56,7 +56,19 @@
   }
 
   function randomIntervalFunc() {
-    return Math.floor(Math.max(minCheckTime, Math.random() * maxCheckTime));
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    // Check if we're within 10 minutes before or after noon (11:59 AM - 12:02 PM)
+    const isNearNoon = (currentHour === 11 && currentMinute >= 50) ||
+                       (currentHour === 12 && currentMinute <= 10);
+    if (isNearNoon) {
+        // Fast checks: every 5-10 seconds during release window
+        return Math.floor(Math.random() * 5000) + 5000;
+    } else {
+        // Normal slow checks: 45s - 2min
+        return Math.floor(Math.max(minCheckTime, Math.random() * maxCheckTime));
+    }
   }
 
   //results are within 2.5 hrs of reservation
@@ -90,15 +102,23 @@
   }
 
   async function completeReservation() {
-    console.log("booking page");
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    console.log("booking page - attempting to complete reservation");
+    // Wait longer for page to load
+    await new Promise((resolve) => setTimeout(resolve, 3000));
     const completeReservationButton = document.querySelector(
       "[data-test='complete-reservation-button']"
     );
     if (completeReservationButton) {
+      console.log("Button found! Clicking...");
       completeReservationButton.click();
+      console.log("Button clicked successfully");
+    } else {
+      console.log("Complete reservation button not found!");
+      console.log("Available buttons:", document.querySelectorAll("button"));
+      // Send alert email
+      sendEmail('Reached booking page but could not find complete button', window.location.href);
     }
-  }
+}
 
  async function kickedOut(wait) {
     const url = await GM.getValue("url", null);
@@ -141,8 +161,10 @@
           console.log('kicked out');
           execute(kickedOut)
           break
-      case window.location.pathname === "/booking/details": 
-          execute(completeReservation)
+      case window.location.pathname === "/booking/details":
+          execute(async () => {
+        await completeReservation()
+    })
           break
       default:
         console.log('default case');
